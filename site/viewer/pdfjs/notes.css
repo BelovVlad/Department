@@ -68,11 +68,11 @@ body[data-note-tool=eraser].notes-drawing .user-notes>svg{cursor:cell}
     width:auto;max-width:none;max-height:calc(100dvh - var(--reader-head) - 24px);flex-direction:column;flex-wrap:nowrap;gap:6px;padding:6px;border-radius:18px}
   .notes-tool-group,.notes-actions{flex-direction:column;width:auto;gap:2px}
   .notes-actions,.compact-view .notes-actions{border-left:0;padding:6px 0 0;border-top:1px solid var(--line)}
-  .notes-tools button,.notes-tools summary{width:42px;height:42px}
+  .notes-tools button,.notes-tools summary{width:44px;height:44px}
   .notes-options-body{right:calc(100% + 12px);bottom:auto;top:50%;transform:translateY(-50%);max-height:calc(100dvh - var(--reader-head) - 24px)}
   .notes-mode .viewer,.notes-mode.continuous-mode .continuous-pages{padding-bottom:0}
   .notes-mode.continuous-mode .continuous-pages{padding-bottom:28px}
-  /* Unlike the bar, the column stays while the reading bar slides away. */
-  .compact-view.reader-chrome-hidden .notes-tools{transform:translateY(-50%);opacity:1;visibility:visible;pointer-events:auto}
+  /* On touch screens it slides out to the right with the reading bar; with a mouse it stays. */
+  .compact-view.reader-chrome-hidden .notes-tools{transform:translate(calc(100% + 24px),-50%);opacity:0;visibility:hidden;pointer-events:none}
   .reader-chrome-hidden .notes-tools{top:50%}
 }
