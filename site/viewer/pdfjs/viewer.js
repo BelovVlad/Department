@@ -1,27 +1,27 @@
 // PDF.js is served by the site itself: the reader must not depend on a CDN being reachable.
 import * as pdfjsLib from '../vendor/pdfjs-4.10.38/pdf.min.mjs';
-import {ReaderNotes} from './notes.js';
-import {renderViewerIcons} from './icons.js';
-import {applyToneToCanvas,PDF_TONES} from './pdf-tone.js';
-import {normalizeText,findMatches,itemHighlightRanges} from './search-text.js';
-// Department files are never renamed behind published links.
-const currentMaterialPath=path=>path;
+import {ReaderNotes} from './notes.js?v=01d30fc6e0';
+import {currentMaterialPath} from './material-paths.js?v=141600aa95';
+import {renderViewerIcons} from './icons.js?v=c6753488af';
+import {applyToneToCanvas,PDF_TONES} from './pdf-tone.js?v=37583b871e';
+import {normalizeText,findMatches,itemHighlightRanges} from './search-text.js?v=3770976b57';
+import READER from './reader-config.js?v=8c3b9f537c';
 const PDFJS_BASE=new URL('../vendor/pdfjs-4.10.38/',location.href).href;
 pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_BASE+'pdf.worker.min.mjs';
 
-const OWNER='BelovVlad',REPO='Department',BRANCH='main';
+const {owner:OWNER,name:REPO,branch:BRANCH}=READER.repo;
 const params=new URLSearchParams(location.search);
 const sourceFileParam=params.get('file')||'';
 const raw=currentMaterialPath(sourceFileParam);
 const subject=params.get('subject')||'';
 const titleParam=params.get('title')||'';
-// Word documents are shown as their PDF copy; «Файл» still gives the original.
-const sourceParam=params.get('source')||'';
 const pageParam=Number(params.get('page')||0);
 const findParam=params.get('find')||'';
 const versionParam=params.get('v')||'';
 const themeParam=params.get('theme')||'';
 const embedParam=params.get('embed')==='1';
+// Word documents are shown as their PDF copy; «Файл» still gives the original.
+const sourceParam=params.get('source')||'';
 const searchPreviewParam=params.get('searchpreview')==='1';
 if(embedParam)document.body.classList.add('embed-view');
 if(searchPreviewParam)document.body.classList.add('search-preview-mode');
@@ -1150,7 +1150,7 @@ landscapePhoneQuery.addEventListener('change',()=>{
 async function open(){
   if(!raw){fail('В ссылке не указан файл.');return}
   lockReaderChrome(1000);
-  title.textContent=titleParam||raw.split('/').pop();document.title=(titleParam||'Документ')+' · Кафедра';showLoading('Открываю документ…');
+  title.textContent=titleParam||raw.split('/').pop();document.title=(titleParam||READER.defaultTitle)+READER.titleSuffix;showLoading('Открываю документ…');
   try{
     pdfUrl=resolvePdfUrl(raw);direct.href=sourceParam?new URL('../../'+encPath(sourceParam),location.href).href:pdfUrl;
     const hints=searchPreviewParam?Promise.resolve(null):loadPageSizeHints();
@@ -1169,7 +1169,7 @@ async function applyNavigation(){
   const nextPage=url.searchParams.has('page')?validPage(url.searchParams.get('page')):pageNum;
   const query=url.searchParams.get('find')||'';
   title.textContent=url.searchParams.get('title')||raw.split('/').pop();
-  document.title=title.textContent+' · Кафедра';
+  document.title=title.textContent+READER.titleSuffix;
   history.replaceState(null,'',url.href);
   closeSearch();resetSearch();
   if(nextPage!==pageNum){pageNum=nextPage;savePage();await renderPage()}
@@ -1191,7 +1191,7 @@ back.onclick=async()=>{
     return;
   }
   if(history.length>1)history.back();
-  else location.href='../../'+(subject?'#s-'+encodeURIComponent(subject):'');
+  else location.href=READER.backUrl(subject);
 };
 outlineToggle.onclick=()=>outlinePanel.classList.contains('open')?closeOutline():void openOutline();outlineClose.onclick=closeOutline;outlineBackdrop.onclick=closeOutline;
 prev.onclick=()=>go(-1);next.onclick=()=>go(1);mPrev.onclick=()=>go(-1);mNext.onclick=()=>go(1);mPageInfo.onclick=()=>pageJump.classList.contains('open')?closePageJump():openPageJump();pageJumpClose.onclick=closePageJump;pageJumpForm.addEventListener('submit',e=>{e.preventDefault();jumpToPage()});document.addEventListener('pointerdown',e=>{if(!pageJump.classList.contains('open'))return;if(pageJump.contains(e.target)||mPageInfo.contains(e.target))return;closePageJump()});
@@ -1236,6 +1236,11 @@ expandViewer.onclick=()=>{
   else document.documentElement.requestFullscreen?.().catch?.(()=>{});
 };
 searchToggle.onclick=openSearch;searchClose.onclick=closeSearch;searchNext.onclick=()=>searchStep(1);searchPrev.onclick=()=>searchStep(-1);searchInput.oninput=resetSearch;searchInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchStep(e.shiftKey?-1:1)}});
+// The installed app keeps element fullscreen so the camera cutout is not a black strip.
+document.addEventListener('pointerup',()=>{
+  if(window.parent===window||!compactQuery.matches)return;
+  try{window.parent.nsuKeepImmersive?.()}catch{}
+},true);
 window.addEventListener('keydown',e=>{if(e.target.closest('dialog,textarea,select'))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();openSearch();return}if(e.key==='Escape'){if(document.body.classList.contains('tools-open'))closeTools(true);else if(pageJump.classList.contains('open'))closePageJump();else if(outlinePanel.classList.contains('open'))closeOutline();else if(searchPanel.classList.contains('open'))closeSearch();else if(notes.enabled){notes.button.click();}else back.click();return}if(document.activeElement===searchInput||document.activeElement===pageInput||document.activeElement===pageJumpInput||document.activeElement===zoomLabel||e.target.closest('input'))return;if(e.key==='ArrowLeft')go(-1);if(e.key==='ArrowRight')go(1)});
 // Zoom gestures preview with a CSS transform around a point fixed at gesture start
 // (measured before any transform is applied), then commit one real scale change.
