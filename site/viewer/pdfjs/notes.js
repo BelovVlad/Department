@@ -1,4 +1,4 @@
-import '../annotations-store.js?v=1';
+import '../annotations-store.js?v=67333490cd';
 
 const svgNS='http://www.w3.org/2000/svg';
 const clone=value=>structuredClone(value);
