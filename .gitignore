@@ -3,3 +3,4 @@ site/dist/
 site/materials.json
 node_modules/
 ~$*
+site/viewer/search-index/

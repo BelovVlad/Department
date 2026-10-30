@@ -27,6 +27,12 @@ jobs:
         with:
           node-version: '22'
       - run: node --test site/tests/*.test.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pymupdf
+      # Full-text index for the reader and the hub's search (site/viewer/search-index).
+      - run: python site/scripts/build_search_index.py
       - run: node site/scripts/build.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
