@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta id="appThemeColor" name="theme-color" content="#0d1015">
+<link rel="icon" href="../../assets/atom.svg" type="image/svg+xml">
+<title>Документ · Кафедра</title>
+<link rel="stylesheet" href="viewer.css?v=1e131249af">
+<link rel="stylesheet" href="controls.css?v=aefab52c91">
+<link rel="stylesheet" href="notes.css?v=c36146054c">
+</head>
+<body>
+<header class="toolbar" aria-label="Управление документом">
+  <div class="reader-top">
+    <button id="back" class="btn rail-button" type="button" title="К курсам кафедры" aria-label="К курсам кафедры"><span data-viewer-icon="back"></span><span class="tool-caption">Назад</span></button>
+    <div class="reader-heading"><span class="reader-eyebrow">PDF</span><div id="title" class="title">Документ</div></div>
+    <button id="toolsToggle" class="btn icon tools-toggle" type="button" title="Настройки чтения" aria-label="Настройки чтения" aria-expanded="false" aria-controls="readerControls"><span data-viewer-icon="settings"></span></button>
+  </div>
+  <div class="reader-actions">
+    <button id="notesToggle" class="btn rail-button" type="button" aria-label="Режим заметок" title="Заметки и рисование (хранятся в этом браузере)" aria-pressed="false" disabled><span data-viewer-icon="pen"></span><span class="tool-caption">Заметки</span></button>
+    <button id="outlineToggle" class="btn icon" type="button" title="Оглавление" aria-label="Оглавление" aria-expanded="false" aria-controls="outlinePanel"><span data-viewer-icon="outline"></span></button>
+    <button id="searchToggle" class="btn icon" type="button" title="Поиск по PDF" aria-label="Поиск по PDF" aria-expanded="false" aria-controls="searchPanel"><span data-viewer-icon="search"></span></button>
+    <button id="expandViewer" class="btn icon expand-viewer" type="button" title="Развернуть документ" aria-label="Развернуть документ"><span data-viewer-icon="expand"></span></button>
+  </div>
+  <div id="readerControls" class="reader-controls" role="region" aria-label="Настройки чтения">
+    <div class="tools-heading"><span>Настройки чтения</span><button id="toolsClose" class="btn icon" type="button" aria-label="Закрыть настройки"><span data-viewer-icon="close"></span></button></div>
+    <div class="control-group page-controls">
+      <label class="control-label" for="page">Страница</label>
+      <input id="page" class="page-input" type="number" min="1" value="1" aria-label="Номер страницы">
+      <span id="total" class="page-total">/ —</span>
+      <div class="control-pair"><button id="prev" class="btn icon" type="button" title="Предыдущая страница" aria-label="Предыдущая страница"><span data-viewer-icon="previous"></span></button><button id="next" class="btn icon" type="button" title="Следующая страница" aria-label="Следующая страница"><span data-viewer-icon="next"></span></button></div>
+    </div>
+    <div class="control-group zoom-controls">
+      <label class="control-label" for="zoom">Масштаб</label>
+      <div class="control-pair"><button id="zoomOut" class="btn icon" type="button" title="Уменьшить" aria-label="Уменьшить"><span data-viewer-icon="minus"></span></button><button id="zoomIn" class="btn icon" type="button" title="Увеличить" aria-label="Увеличить"><span data-viewer-icon="plus"></span></button></div>
+      <label class="zoom-edit" title="Масштаб от 35 до 400%"><input id="zoom" class="zoom-input" type="number" min="35" max="400" step="1" value="100" inputmode="numeric" aria-label="Масштаб в процентах"><span>%</span></label>
+      <button id="fit" class="btn rail-button" type="button" title="По ширине страницы" aria-label="По ширине страницы"><span data-viewer-icon="fit"></span><span class="tool-caption">По ширине</span></button>
+    </div>
+    <div class="tone-switch" id="toneSwitch" role="group" aria-label="Цветовой режим PDF" hidden>
+      <button class="tone-btn" type="button" data-tone="black" title="Чёрный режим" aria-label="Чёрный режим" aria-pressed="false">
+        <svg class="tone-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.7 8.7 0 0 1 8.8 3.8 8.8 8.8 0 1 0 20.2 15.2Z" fill="currentColor"/></svg>
+      </button>
+      <button class="tone-btn" type="button" data-tone="orig" title="Оригинал" aria-label="Оригинальные цвета" aria-pressed="false">
+        <svg class="tone-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><g stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></g></svg>
+      </button>
+      <button class="tone-btn" type="button" data-tone="mine" title="Моя палитра" aria-label="Моя палитра" aria-pressed="false">
+        <svg class="tone-icon tone-icon-mine" viewBox="0 0 24 24" aria-hidden="true">
+          <path class="mine-left" d="M12 3 3 12l9 9V3Z"/>
+          <path class="mine-right" d="M12 3l9 9-9 9V3Z"/>
+          <path class="mine-line" d="M12 3 3 12l9 9 9-9-9-9Z"/>
+        </svg>
+      </button>
+    </div>
+    <a id="direct" class="btn rail-button direct-link" href="#" target="_blank" rel="noopener" title="Открыть исходный файл" aria-label="Открыть исходный файл"><span data-viewer-icon="file"></span><span class="tool-caption">Файл</span></a>
+  </div>
+</header>
+<div id="toolsBackdrop" class="tools-backdrop"></div>
+
+<div id="searchPanel" class="search-panel" role="search">
+  <input id="searchInput" class="search-input" type="search" autocomplete="off" placeholder="Поиск по PDF…" aria-label="Поиск по PDF">
+  <button id="searchPrev" class="btn icon search-prev" type="button" title="Предыдущее совпадение">↑</button>
+  <button id="searchNext" class="btn icon search-next" type="button" title="Следующее совпадение">↓</button>
+  <span id="searchStatus" class="search-status">Enter — найти</span>
+  <button id="searchClose" class="btn icon search-close" type="button" title="Закрыть поиск">×</button>
+</div>
+
+<aside id="outlinePanel" class="outline-panel" aria-label="Оглавление PDF">
+  <div class="outline-head"><span class="outline-title">Оглавление</span><button id="outlineClose" class="btn icon" type="button" aria-label="Закрыть оглавление">×</button></div>
+  <div id="outlineTree" class="outline-tree"><div class="outline-empty">Оглавление загрузится при открытии панели.</div></div>
+</aside>
+<div id="outlineBackdrop" class="outline-backdrop"></div>
+
+<div id="loading" class="loading"><span class="dot"></span><span id="loadingText">Загрузка страницы…</span></div>
+<main id="viewer" class="viewer"><div id="stage" class="stage"><div class="canvas-wrap"><canvas id="canvas"></canvas><div id="highlightLayer" class="highlight-layer"></div><div id="textLayer" class="text-layer"></div><div id="annotationLayer" class="annotation-layer"></div></div></div></main>
+
+<nav class="mobile-nav" aria-label="Навигация по PDF">
+  <button id="mPrev" class="m-btn" type="button" title="Предыдущая страница" aria-label="Предыдущая страница"><span data-viewer-icon="previous"></span></button>
+  <button id="mPageInfo" class="m-page-info" type="button" title="Перейти к странице" aria-label="Перейти к странице" aria-expanded="false">1 / —</button>
+  <button id="mNext" class="m-btn" type="button" title="Следующая страница" aria-label="Следующая страница"><span data-viewer-icon="next"></span></button>
+</nav>
+<div id="pageJump" class="page-jump" aria-hidden="true">
+  <form id="pageJumpForm" class="page-jump-form">
+    <span class="page-jump-label">Стр.</span>
+    <input id="pageJumpInput" class="page-jump-input" type="number" min="1" value="1" inputmode="numeric" aria-label="Номер страницы">
+    <span id="pageJumpTotal" class="page-jump-total">/ —</span>
+    <button class="page-jump-go" type="submit">Перейти</button>
+    <button id="pageJumpClose" class="page-jump-close" type="button" aria-label="Закрыть выбор страницы">×</button>
+  </form>
+</div>
+
+<script type="module" src="viewer.js?v=d986cb2439"></script>
+</body>
+</html>
