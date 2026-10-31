@@ -52,13 +52,21 @@ details.section[open]{padding-bottom:22px}
    row's top corner and a slow wave runs through it. Touch screens keep a faint still patch. */
 .file{position:relative;isolation:isolate}
 .file:before{content:"";position:absolute;top:0;right:0;bottom:0;z-index:-1;width:min(420px,55%);border-radius:0 10px 10px 0;pointer-events:none;opacity:0;transition:opacity .4s ease;
-  background:radial-gradient(circle,color-mix(in srgb,var(--accent) 75%,transparent) 1.25px,transparent 1.75px) 22px 22px/55px 55px,radial-gradient(circle,color-mix(in srgb,var(--cream) 50%,transparent) 1.1px,transparent 1.6px) 0 0/11px 11px;
-  -webkit-mask:radial-gradient(ellipse 100% 180% at 100% 0,#000 15%,transparent 80%),linear-gradient(110deg,#0006 0,#000 26%,#0008 52%,#000e 76%,#0006 100%) 0 0/300% 100%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--accent) 75%,transparent) 1.25px,transparent 1.75px) var(--dw-rx,22px) var(--dw-ry,22px)/var(--dw-tile,55px) var(--dw-tile,55px),radial-gradient(circle,color-mix(in srgb,var(--cream) 50%,transparent) 1.1px,transparent 1.6px) 0 0/11px 11px;
+  -webkit-mask:radial-gradient(ellipse 100% 180% at 100% 0,#000 15%,transparent 80%),linear-gradient(var(--dw-angle,110deg),#0006 0,#000 26%,#0008 52%,#000e 76%,#0006 100%) 0 0/var(--dw-len,300%) 100%;
   -webkit-mask-composite:source-in;
-  mask:radial-gradient(ellipse 100% 180% at 100% 0,#000 15%,transparent 80%),linear-gradient(110deg,#0006 0,#000 26%,#0008 52%,#000e 76%,#0006 100%) 0 0/300% 100%;
+  mask:radial-gradient(ellipse 100% 180% at 100% 0,#000 15%,transparent 80%),linear-gradient(var(--dw-angle,110deg),#0006 0,#000 26%,#0008 52%,#000e 76%,#0006 100%) 0 0/var(--dw-len,300%) 100%;
   mask-composite:intersect}
-.file:hover:before,.file:focus-within:before{opacity:1;animation:card-dots 6s linear infinite}
-@keyframes card-dots{to{-webkit-mask-position:0 0,-150% 0;mask-position:0 0,-150% 0}}
+.file:hover:before,.file:focus-within:before{opacity:1;animation:card-dots var(--dw-time,6s) linear infinite var(--dw-dir,normal)}
+@keyframes card-dots{to{-webkit-mask-position:0 0,var(--dw-end,-150%) 0;mask-position:0 0,var(--dw-end,-150%) 0}}
+/* Neighbouring rows get different waves: direction, length, speed and red spacing. */
+.file:nth-child(2n){--dw-dir:reverse}
+.file:nth-child(3n+1){--dw-angle:70deg;--dw-time:5s;--dw-len:200%;--dw-end:-200%}
+.file:nth-child(3n+2){--dw-angle:145deg;--dw-time:7.6s;--dw-len:400%;--dw-end:-133.333%}
+.file:nth-child(5n+1){--dw-tile:44px;--dw-rx:16.5px;--dw-ry:5.5px}
+.file:nth-child(5n+2){--dw-tile:66px;--dw-rx:5.5px;--dw-ry:27.5px}
+.file:nth-child(5n+3){--dw-tile:77px;--dw-rx:33px;--dw-ry:11px}
+.file:nth-child(5n+4){--dw-tile:55px;--dw-rx:0px;--dw-ry:33px}
 @media(hover:none){.file:before{opacity:.4}}
 @media(prefers-reduced-motion:reduce){.file:before{animation:none!important}}
 .file-main{display:flex;align-items:center;gap:15px;flex:1;min-width:0;text-decoration:none;padding:15px 17px}
