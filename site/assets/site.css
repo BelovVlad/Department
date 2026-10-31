@@ -48,6 +48,19 @@ details.section[open]{padding-bottom:22px}
 .files{margin-top:6px}
 .file{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:10px;background:var(--panel);margin-top:8px}
 .file:hover{border-color:var(--accent)}
+/* Dots, the motif shared with the PweB hub: on hover its dot grid (sparse red accent) surfaces in the
+   row's top corner and a slow wave runs through it. Touch screens keep a faint still patch. */
+.file{position:relative;isolation:isolate}
+.file:before{content:"";position:absolute;top:0;right:0;bottom:0;z-index:-1;width:min(420px,55%);border-radius:0 10px 10px 0;pointer-events:none;opacity:0;transition:opacity .4s ease;
+  background:radial-gradient(circle,color-mix(in srgb,var(--accent) 75%,transparent) 1.25px,transparent 1.75px) 22px 22px/55px 55px,radial-gradient(circle,color-mix(in srgb,var(--cream) 50%,transparent) 1.1px,transparent 1.6px) 0 0/11px 11px;
+  -webkit-mask:radial-gradient(ellipse 100% 180% at 100% 0,#000 15%,transparent 80%),linear-gradient(110deg,#0006 0,#000 26%,#0008 52%,#000e 76%,#0006 100%) 0 0/300% 100%;
+  -webkit-mask-composite:source-in;
+  mask:radial-gradient(ellipse 100% 180% at 100% 0,#000 15%,transparent 80%),linear-gradient(110deg,#0006 0,#000 26%,#0008 52%,#000e 76%,#0006 100%) 0 0/300% 100%;
+  mask-composite:intersect}
+.file:hover:before,.file:focus-within:before{opacity:1;animation:card-dots 6s linear infinite}
+@keyframes card-dots{to{-webkit-mask-position:0 0,-150% 0;mask-position:0 0,-150% 0}}
+@media(hover:none){.file:before{opacity:.4}}
+@media(prefers-reduced-motion:reduce){.file:before{animation:none!important}}
 .file-main{display:flex;align-items:center;gap:15px;flex:1;min-width:0;text-decoration:none;padding:15px 17px}
 .file-icon{display:grid;place-items:center;width:42px;height:42px;flex:none;border:1px solid var(--line);border-radius:7px;color:var(--warm);font-size:8px;font-weight:700;letter-spacing:.03em;text-align:center;line-height:1.1;padding:2px}
 .file-icon[data-kind=PDF]{color:var(--accent);border-color:#d64c5040}
