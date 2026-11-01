@@ -3,7 +3,7 @@
 
 Writes site/viewer/search-index/ (files.json, manifest.json, one part per course). The shared
 search worker (site/viewer/search-worker.js) reads it: the reader uses it for its search and
-page layout, and the hub at belovvlad.github.io searches the books through it.
+page layout, and the hub at hyle.space searches the books through it.
 Scanned books without a text layer are listed but cannot be found by their text.
 
     python site/scripts/build_search_index.py      # needs PyMuPDF (pip install pymupdf)
