@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta id="appThemeColor" name="theme-color" content="#080d12">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<title>Notebook · Кафедра</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark-dimmed.min.css">
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+window.MathJax={
+  loader:{load:['[tex]/ams','[tex]/boldsymbol']},
+  tex:{
+    packages:{'[+]':['ams','boldsymbol']},
+    inlineMath:[],
+    displayMath:[],
+    processEscapes:true
+  },
+  options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']},
+  startup:{typeset:false}
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
+<link rel="stylesheet" href="viewer.css?build=30ef103226">
+<script defer src="outline.js?build=d72f570ee4"></script>
+</head>
+<body>
+<header class="toolbar">
+  <button id="back" class="back" type="button" aria-label="Назад" title="Назад">←</button>
+  <div class="title-wrap">
+    <div id="title" class="title">Jupyter Notebook</div>
+    <div id="subtitle" class="subtitle">Просмотр без выполнения кода</div>
+  </div>
+  <div class="actions">
+    <button id="tocToggle" class="toc-toggle" type="button" title="Оглавление" aria-label="Оглавление" aria-controls="notebookOutline" aria-expanded="false" hidden><span aria-hidden="true">☰</span><span class="toc-caption">Содержание</span></button>
+    <div class="find-box">
+      <input id="findInput" class="find-input" type="search" autocomplete="off" placeholder="Поиск в тексте…" aria-label="Поиск по материалу">
+      <span id="findStatus" class="find-status"></span>
+      <button id="findPrev" class="find-btn" type="button" title="Предыдущее">↑</button>
+      <button id="findNext" class="find-btn" type="button" title="Следующее">↓</button>
+      <div id="findResults" class="find-results" aria-label="Найденные величины" hidden></div>
+    </div>
+    <select id="zoomSelect" class="zoom-select" aria-label="Масштаб notebook" title="Масштаб">
+      <option value="80">80%</option><option value="90">90%</option><option value="100">100%</option>
+      <option value="110">110%</option><option value="125">125%</option><option value="150">150%</option>
+    </select>
+    <a id="github" class="github-link" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+</header>
+<div class="notebook-layout">
+<main id="main" class="notebook-shell">
+  <div class="loading"><div class="loading-inner"><div class="spinner"></div><div>Загружаю notebook…</div></div></div>
+</main>
+<aside id="notebookOutline" class="notebook-outline" aria-label="Оглавление материала" hidden>
+  <div class="toc-head"><h2>Содержание</h2><button id="tocClose" type="button" aria-label="Закрыть оглавление">×</button></div>
+  <nav id="tocLinks" aria-label="Разделы материала"></nav>
+</aside>
+</div>
+<div id="tocBackdrop" class="toc-backdrop" hidden></div>
+<script>
+const OWNER='BelovVlad',REPO='Department',BRANCH='main';
+const params=new URLSearchParams(location.search);
+const raw=params.get('file')||'';
+const titleParam=params.get('title')||'';
+const subject=params.get('subject')||'';
+const version=params.get('v')||'';
+const theme=params.get('theme')||'';
+const embed=params.get('embed')==='1';
+const full=params.get('full')==='1';
+const initialCell=Math.max(0,Number(params.get('cell')||0));
+const initialFind=params.get('find')||'';
+const main=document.getElementById('main');
+const back=document.getElementById('back');
+const title=document.getElementById('title');
+const subtitle=document.getElementById('subtitle');
+const github=document.getElementById('github');
+const findInput=document.getElementById('findInput');
+const findStatus=document.getElementById('findStatus');
+const findPrev=document.getElementById('findPrev');
+const findNext=document.getElementById('findNext');
+const findResults=document.getElementById('findResults');
+const zoomSelect=document.getElementById('zoomSelect');
+let notebook=null,notebookUrl='',findHits=[],findCursor=-1,findTargets=[],referenceRows=[],findJumpTimer=0;
+
+if(embed)document.body.classList.add('embed');
+const knowledgeReader=raw.startsWith('База/')&&!raw.startsWith('База/КМ/');
+if(knowledgeReader)document.body.classList.add('knowledge-reader');
+function applyTheme(value){
+  document.body.classList.remove('theme-na19','theme-na19x');
+  if(value==='na19')document.body.classList.add('theme-na19');
+  else if(value==='na19x')document.body.classList.add('theme-na19x');
+  const meta=document.getElementById('appThemeColor');
+  if(meta)meta.content=value==='na19'?'#061011':value==='na19x'?'#171b1e':'#080d12';
+}
+applyTheme(theme);
+window.addEventListener('message',e=>{
+  if(e.origin!==location.origin||e.data?.type!=='nsu-pdf-theme')return;
+  applyTheme(e.data.theme||'');
+});
+
+const encPath=p=>p.split('/').map(encodeURIComponent).join('/');
+const joinValue=v=>Array.isArray(v)?v.join(''):v==null?'':String(v);
+const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const stripAnsi=s=>String(s||'').replace(/\x1b\[[0-?]*[ -\/]*[@-~]/g,'');
+const normalize=s=>String(s||'').normalize('NFKC').toLocaleLowerCase('ru-RU').replace(/\u00ad/g,'').replace(/ё/g,'е').replace(/\s+/g,' ').trim();
+
+function localFileUrl(path){
+  const url=new URL('../../'+encPath(path.replace(/^\/+/,'')),location.href);
+  if(version)url.searchParams.set('v',version);
+  return url;
+}
+function githubFileUrl(path){return 'https://github.com/'+OWNER+'/'+REPO+'/blob/'+BRANCH+'/'+encPath(path.replace(/^files\//,''))}
+function notebookDirUrl(){
+  const parts=raw.split('/');parts.pop();
+  return new URL('../../'+(parts.length?encPath(parts.join('/'))+'/':''),location.href);
+}
+function resolveRelative(url){
+  if(!url||/^(?:[a-z]+:|#|data:|blob:)/i.test(url))return url;
+  try{return new URL(url,notebookDirUrl()).href}catch{return url}
+}
+function attachmentUrl(cell,name){
+  const data=cell.attachments?.[name];if(!data)return null;
+  const mime=Object.keys(data).find(k=>/^image\//.test(k))||Object.keys(data)[0];
+  if(!mime)return null;
+  return 'data:'+mime+';base64,'+joinValue(data[mime]).replace(/\s+/g,'');
+}
+function prepareMarkdownSource(source,cell){
+  return String(source||'').replace(/attachment:([^\s)"']+)/g,(m,name)=>attachmentUrl(cell,name)||m);
+}
+function sanitize(html,svg=false){
+  if(!window.DOMPurify)return escapeHtml(html);
+  return DOMPurify.sanitize(html,svg?{USE_PROFILES:{svg:true,svgFilters:true}}:{USE_PROFILES:{html:true}});
+}
+const mathRegistry=new Map();
+let mathSerial=0;
+
+function repoPathFromRelative(value){
+  if(!value||/^(?:[a-z]+:|#|data:|blob:)/i.test(value))return null;
+  try{
+    const base=new URL('/'+raw.replace(/^\/+/,''),'https://repo.local/');
+    const u=new URL(value,base);
+    return decodeURIComponent(u.pathname.replace(/^\/+/,''));
+  }catch{return null}
+}
+function internalMaterialUrl(path){
+  if(!path)return null;
+
+  // INDEX.ipynb was deliberately removed. Old notebook backlinks now return
+  // to the "База" section instead of opening a dead notebook.
+  if(path==='База/INDEX.ipynb'){
+    const u=new URL('../index.html',location.href);
+    u.hash='subject='+encodeURIComponent('База');
+    return u.href;
+  }
+
+  const low=path.toLowerCase();
+  if(low.endsWith('.ipynb')){
+    const u=new URL('viewer.html',location.href);
+    u.searchParams.set('build','13');
+    u.searchParams.set('file',path);
+    u.searchParams.set('title',path.split('/').pop().replace(/\.ipynb$/i,'').replace(/_/g,' '));
+    if(theme)u.searchParams.set('theme',theme);
+    if(embed)u.searchParams.set('embed','1');
+    if(full)u.searchParams.set('full','1');
+    if(subject)u.searchParams.set('subject',subject);
+    return u.href;
+  }
+  if(low.endsWith('.pdf')){
+    const u=new URL('../pdfjs/viewer.html',location.href);
+    u.searchParams.set('file',path);
+    u.searchParams.set('title',path.split('/').pop().replace(/\.pdf$/i,'').replace(/_/g,' '));
+    if(theme)u.searchParams.set('theme',theme);
+    return u.href;
+  }
+  if(/\.(py|c|h|cc|cpp|cxx|hpp|hh|sh|ps1|js|mjs|json|ya?ml|toml|ini|cfg|md|txt|m|jl|wl|tex|r)$|(^|\/)makefile$/i.test(low)){
+    const u=new URL('code.html',location.href);
+    u.searchParams.set('file',path);
+    u.searchParams.set('title',path.split('/').pop());
+    if(theme)u.searchParams.set('theme',theme);
+    if(subject)u.searchParams.set('subject',subject);
+    return u.href;
+  }
+  return null;
+}
+function wrapScrollableTables(root){
+  root.querySelectorAll('table').forEach(table=>{
+    if(table.parentElement?.classList.contains('table-scroll'))return;
+    const wrap=document.createElement('div');
+    wrap.className='table-scroll';
+    wrap.setAttribute('role','region');
+    wrap.setAttribute('aria-label','Прокручиваемая таблица');
+    table.parentNode.insertBefore(wrap,table);
+    wrap.appendChild(table);
+    const hint=document.createElement('div');
+    hint.className='table-scroll-hint';hint.textContent='Таблицу можно прокрутить влево и вправо ↔';hint.hidden=true;
+    wrap.before(hint);
+    const update=()=>{const overflow=wrap.scrollWidth>wrap.clientWidth+1;hint.hidden=!overflow;if(overflow)wrap.tabIndex=0;else wrap.removeAttribute('tabindex')};
+    const observer=new ResizeObserver(update);observer.observe(wrap);observer.observe(table);
+  });
+}
+function patchLinks(root){
+  root.querySelectorAll('img[src]').forEach(img=>{
+    const v=img.getAttribute('src');
+    if(v&&!v.startsWith('data:'))img.src=resolveRelative(v);
+  });
+  root.querySelectorAll('a[href]').forEach(a=>{
+    const v=a.getAttribute('href');if(!v)return;
+    const repoPath=repoPathFromRelative(v);
+    const internal=repoPath&&internalMaterialUrl(repoPath);
+    if(internal){
+      a.href=internal;a.removeAttribute('target');a.removeAttribute('rel');return;
+    }
+    if(v.startsWith('#'))return;
+    a.href=resolveRelative(v);
+    if(/^https?:/i.test(a.href)){a.target='_blank';a.rel='noopener noreferrer'}
+  });
+}
+function mathEscapedAt(text,pos){
+  let count=0;
+  for(let i=pos-1;i>=0&&text[i]==='\\';i--)count++;
+  return count%2===1;
+}
+function findMathClose(text,needle,from,sameLine=false){
+  let pos=from;
+  while(pos<text.length){
+    pos=text.indexOf(needle,pos);
+    if(pos<0)return-1;
+    if(sameLine&&text.slice(from,pos).includes('\n'))return-1;
+    if(!mathEscapedAt(text,pos))return pos;
+    pos+=needle.length;
+  }
+  return-1;
+}
+function stripBlockquotePrefix(tex,source,start){
+  const lineStart=source.lastIndexOf('\n',start-1)+1;
+  const prefix=source.slice(lineStart,start);
+  if(!/^\s*(?:>\s*)+$/.test(prefix))return tex;
+  return tex.replace(/(^|\n)\s*>\s?/g,'$1');
+}
+function registerMath(tex,display){
+  const id='m'+(++mathSerial);
+  mathRegistry.set(id,{tex:String(tex||'').trim(),display});
+  return id;
+}
+function placeholderHtml(id,display){
+  return '<span class="math-placeholder '+(display?'math-display':'math-inline')+'" data-math-id="'+id+'"></span>';
+}
+function protectMathMarkdown(input){
+  const source=String(input||'');
+  const tokens=[];
+  let out='',i=0;
+  let prefix='NSUMATHPLACEHOLDER';
+  while(source.includes(prefix))prefix+='X';
+
+  const add=(tex,display,end)=>{
+    const marker=prefix+tokens.length+'TOKEN';
+    tokens.push({marker,tex,display,original:source.slice(i,end)});
+    return marker;
+  };
+
+  while(i<source.length){
+    const atLineStart=i===0||source[i-1]==='\n';
+
+    // Fenced code must stay completely literal.
+    if(atLineStart){
+      const fm=source.slice(i).match(/^ {0,3}(\x60{3,}|~{3,})[^\n]*(?:\n|$)/);
+      if(fm){
+        const marker=fm[1],ch=marker[0],min=marker.length;
+        let j=i+fm[0].length,stop=source.length;
+        while(j<source.length){
+          const eol=source.indexOf('\n',j);
+          const end=eol<0?source.length:eol;
+          const line=source.slice(j,end).trim();
+          if(line.length>=min&&[...line].every(c=>c===ch)){
+            stop=eol<0?source.length:eol+1;break;
+          }
+          if(eol<0)break;
+          j=eol+1;
+        }
+        out+=source.slice(i,stop);i=stop;continue;
+      }
+    }
+
+    // Inline code spans must stay literal too.
+    if(source.charCodeAt(i)===96){
+      let run=1;while(source.charCodeAt(i+run)===96)run++;
+      const marker=String.fromCharCode(96).repeat(run);
+      const end=source.indexOf(marker,i+run);
+      if(end>=0){out+=source.slice(i,end+run);i=end+run;continue}
+    }
+
+    if(source.startsWith('$$',i)&&!mathEscapedAt(source,i)){
+      const end=findMathClose(source,'$$',i+2,false);
+      if(end>=0){
+        const tex=stripBlockquotePrefix(source.slice(i+2,end),source,i);
+        out+=add(tex,true,end+2);
+        i=end+2;continue;
+      }
+    }
+
+    if(source.startsWith('\\[',i)&&!mathEscapedAt(source,i)){
+      const end=findMathClose(source,'\\]',i+2,false);
+      if(end>=0){
+        const tex=stripBlockquotePrefix(source.slice(i+2,end),source,i);
+        out+=add(tex,true,end+2);i=end+2;continue;
+      }
+    }
+
+    if(source.startsWith('\\(',i)&&!mathEscapedAt(source,i)){
+      const end=findMathClose(source,'\\)',i+2,false);
+      if(end>=0){
+        out+=add(source.slice(i+2,end),false,end+2);i=end+2;continue;
+      }
+    }
+
+    if(source[i]==='$'&&source[i+1]!=='$'&&!mathEscapedAt(source,i)){
+      const end=findMathClose(source,'$',i+1,true);
+      if(end>=0){
+        const tex=source.slice(i+1,end);
+        if(tex.trim()){
+          out+=add(tex,false,end+1);i=end+1;continue;
+        }
+      }
+    }
+
+    // Handle bare AMS environments occasionally used without delimiters.
+    if(source.startsWith('\\begin{',i)&&!mathEscapedAt(source,i)){
+      const m=source.slice(i).match(/^\\begin\{(align\*?|aligned|gather\*?|gathered|cases|array|matrix|pmatrix|bmatrix|vmatrix|Vmatrix|equation\*?)\}/);
+      if(m){
+        const close='\\end{'+m[1]+'}';
+        const end=findMathClose(source,close,i+m[0].length,false);
+        if(end>=0){
+          out+=add(stripBlockquotePrefix(source.slice(i,end+close.length),source,i),true,end+close.length);
+          i=end+close.length;continue;
+        }
+      }
+    }
+
+    out+=source[i];i++;
+  }
+
+  return{source:out,tokens};
+}
+function restoreMathPlaceholders(html,tokens){
+  if(!tokens.length)return html;
+  // Restore only text nodes in sanitized HTML, never HTML strings inside
+  // attributes. Spans remain valid inside headings, paragraphs and tables.
+  const template=document.createElement('template');
+  template.innerHTML=html;
+  const byMarker=new Map(tokens.map(token=>[token.marker,token]));
+  const pattern=new RegExp(tokens.map(token=>token.marker).join('|'),'g');
+  const walker=document.createTreeWalker(template.content,NodeFilter.SHOW_TEXT);
+  const nodes=[];
+  while(walker.nextNode())nodes.push(walker.currentNode);
+  for(const node of nodes){
+    const text=node.textContent;
+    const fragment=document.createDocumentFragment();
+    let offset=0;
+    for(const match of text.matchAll(pattern)){
+      fragment.append(text.slice(offset,match.index));
+      const token=byMarker.get(match[0]);
+      if(node.parentElement?.closest('pre,code')){
+        fragment.append(token.original);
+      }else{
+        const span=document.createElement('span');
+        span.className='math-placeholder '+(token.display?'math-display':'math-inline');
+        span.dataset.mathId=registerMath(token.tex,token.display);
+        fragment.append(span);
+      }
+      offset=match.index+match[0].length;
+    }
+    if(offset){fragment.append(text.slice(offset));node.replaceWith(fragment)}
+  }
+  // Markers in link titles, image alt text, etc. are literal text as well.
+  template.content.querySelectorAll('*').forEach(el=>{
+    for(const attr of [...el.attributes]){
+      el.setAttribute(attr.name,attr.value.replace(pattern,marker=>byMarker.get(marker).original));
+    }
+  });
+  return template.innerHTML;
+}
+function renderMarkdown(source,cell){
+  const prepared=prepareMarkdownSource(source,cell);
+  const protectedMath=protectMathMarkdown(prepared);
+  const rendered=window.marked
+    ?marked.parse(protectedMath.source,{gfm:true,breaks:false})
+    :'<pre>'+escapeHtml(protectedMath.source)+'</pre>';
+  return restoreMathPlaceholders(sanitize(rendered),protectedMath.tokens);
+}
+async function mathJaxReady(){
+  if(!window.MathJax)return false;
+  try{
+    if(MathJax.startup?.promise)await MathJax.startup.promise;
+  }catch{}
+  return typeof MathJax.tex2chtmlPromise==='function';
+}
+async function renderMathNode(node){
+  const id=node.dataset.mathId;
+  const token=mathRegistry.get(id);
+  if(!token)return;
+
+  const ready=await mathJaxReady();
+  if(!ready){
+    node.textContent=(token.display?'$$ ':'$ ')+token.tex+(token.display?' $$':' $');
+    node.classList.add('math-error');
+    return;
+  }
+
+  try{
+    // getMetricsFor measures the element; it does not set conversion mode.
+    // tex2chtml defaults to display math, including its large block margins.
+    const options={...MathJax.getMetricsFor(node,token.display),display:token.display};
+    const rendered=await MathJax.tex2chtmlPromise(token.tex,options);
+    const error=rendered.querySelector('[data-mjx-error],mjx-merror');
+    if(error)throw new Error(error.getAttribute('data-mjx-error')||'Invalid TeX');
+    node.replaceChildren(rendered);
+    node.classList.remove('math-error');
+    node.classList.add('math-rendered');
+  }catch(err){
+    console.warn('MathJax token failed',token.tex,err);
+    node.textContent=token.tex;
+    node.classList.add('math-error');
+  }
+}
+async function renderAllMath(root=main){
+  const nodes=[...root.querySelectorAll('.math-placeholder[data-math-id]')];
+  // Render sequentially. It is a little slower than Promise.all, but avoids
+  // MathJax state races with \tag and AMS environments in large notebooks.
+  for(const node of nodes)await renderMathNode(node);
+  if(nodes.length&&await mathJaxReady()){
+    // Direct conversion does not install/update adaptive CHTML styles.
+    // Without them mjx-math/mjx-itable are inline and tagged math collapses.
+    MathJax.startup.document.clear();
+    MathJax.startup.document.updateDocument();
+    await document.fonts.ready;
+  }
+}
+
+function dataToText(data){
+  if(data==null)return'';
+  if(typeof data==='string')return data;
+  if(Array.isArray(data))return data.join('');
+  try{return JSON.stringify(data,null,2)}catch{return String(data)}
+}
+function outputSearchText(output){
+  if(output.output_type==='stream')return joinValue(output.text);
+  if(output.output_type==='error')return [output.ename,output.evalue,...(output.traceback||[])].join(' ');
+  const data=output.data||{};
+  return ['text/plain','text/markdown','text/html','application/json'].map(k=>dataToText(data[k])).join(' ');
+}
+function renderDataOutput(data){
+  if(!data)return'<pre></pre>';
+  if(data['text/html']!=null)return'<div class="rich-html">'+sanitize(joinValue(data['text/html']))+'</div>';
+  if(data['image/svg+xml']!=null)return'<div class="svg-output">'+sanitize(joinValue(data['image/svg+xml']),true)+'</div>';
+  for(const mime of ['image/png','image/jpeg','image/gif','image/webp']){
+    if(data[mime]!=null)return'<img alt="output" src="data:'+mime+';base64,'+joinValue(data[mime]).replace(/\s+/g,'')+'">';
+  }
+  if(data['text/markdown']!=null)return'<div class="markdown-body">'+renderMarkdown(joinValue(data['text/markdown']),{})+'</div>';
+  if(data['text/latex']!=null){
+    const source=joinValue(data['text/latex']);
+    const math=protectMathMarkdown(source);
+    const single=math.tokens.length===1&&math.source.trim()===math.tokens[0].marker;
+    const tex=single?math.tokens[0].tex:source;
+    const id=registerMath(tex,true);
+    return'<div class="markdown-body">'+placeholderHtml(id,true)+'</div>';
+  }
+  if(data['application/json']!=null)return'<pre>'+escapeHtml(dataToText(data['application/json']))+'</pre>';
+  if(data['application/vnd.jupyter.widget-view+json']!=null)return'<pre>Интерактивный Jupyter-виджет сохранён в notebook, но в статическом просмотрщике не выполняется.</pre>';
+  if(data['application/vnd.plotly.v1+json']!=null)return'<pre>Интерактивный Plotly-график сохранён в notebook. Для статического просмотра нужен сохранённый image/png или image/svg+xml.</pre>';
+  if(data['text/plain']!=null)return'<pre>'+escapeHtml(joinValue(data['text/plain']))+'</pre>';
+  const types=Object.keys(data);
+  return'<pre>Сохранённый вывод'+(types.length?' ('+escapeHtml(types.join(', '))+')':'')+' пока не поддерживается.</pre>';
+}
+
+function renderOutput(output,count){
+  let body='',klass='';
+  if(output.output_type==='stream')body='<pre>'+escapeHtml(joinValue(output.text))+'</pre>';
+  else if(output.output_type==='error'){
+    klass=' output-error';
+    const text=[output.ename&&output.evalue?output.ename+': '+output.evalue:'',...(output.traceback||[])].filter(Boolean).map(stripAnsi).join('\n');
+    body='<pre>'+escapeHtml(text)+'</pre>';
+  }else if(output.output_type==='execute_result'||output.output_type==='display_data')body=renderDataOutput(output.data||{});
+  else body='<pre>'+escapeHtml(dataToText(output))+'</pre>';
+  const prompt=output.output_type==='execute_result'&&count!=null?'Out ['+count+']:':'';
+  return'<div class="output-row"><div class="prompt">'+escapeHtml(prompt)+'</div><div class="output-body'+klass+'">'+body+'</div></div>';
+}
+function renderCell(cell,index,language){
+  const n=index+1,source=joinValue(cell.source);
+  if(cell.cell_type==='markdown'){
+    return'<section class="cell markdown-cell" id="cell-'+n+'" data-cell="'+n+'"><div class="prompt"></div><div class="cell-body markdown-body">'+renderMarkdown(source,cell)+'</div></section>';
+  }
+  if(cell.cell_type==='code'){
+    const count=cell.execution_count==null?' ':cell.execution_count;
+    const outputs=(cell.outputs||[]).map(o=>renderOutput(o,cell.execution_count)).join('');
+    return'<section class="cell code-cell" id="cell-'+n+'" data-cell="'+n+'"><div class="prompt">In ['+escapeHtml(count)+']:</div><div class="cell-body"><div class="code-box"><pre><code class="language-'+escapeHtml(language)+'">'+escapeHtml(source)+'</code></pre></div>'+outputs+'</div></section>';
+  }
+  return'<section class="cell raw-cell" id="cell-'+n+'" data-cell="'+n+'"><div class="prompt">Raw:</div><div class="cell-body"><pre>'+escapeHtml(source)+'</pre></div></section>';
+}
+function cellText(cell){
+  return normalize(joinValue(cell.source)+' '+(cell.outputs||[]).map(outputSearchText).join(' '));
+}
+function clearFindHit(){main.querySelectorAll('.find-hit').forEach(el=>el.classList.remove('find-hit'))}
+function scrollToCell(n,smooth=true){
+  const el=document.getElementById('cell-'+n);if(!el)return false;
+  clearFindHit();el.classList.add('find-hit');el.scrollIntoView({behavior:smooth?'smooth':'auto',block:'center'});return true;
+}
+function rebuildFindHits(){
+  clearTimeout(findJumpTimer);
+  const q=normalize(findInput.value);
+  findHits=[];findTargets=[];findCursor=-1;clearFindHit();findResults.hidden=true;findResults.replaceChildren();
+  if(!q||!notebook){findStatus.textContent='';return}
+  if(referenceRows.length){
+    const terms=referenceSearchText(q).split(' ').filter(Boolean);
+    const symbol=referenceSearchText(q);
+    const matches=terms.length?referenceRows.filter(row=>symbol.length===1
+      ?row.symbols.includes(symbol)
+      :terms.every(term=>row.text.includes(term))):[];
+    matches.sort((a,b)=>Number(b.symbols.includes(symbol))-Number(a.symbols.includes(symbol)));
+    findTargets=matches.map(row=>row.element);
+    findHits=matches.map(row=>Number(row.element.closest('[data-cell]').dataset.cell));
+    matches.slice(0,8).forEach((row,index)=>{
+      const button=document.createElement('button');button.type='button';
+      const name=document.createElement('span');name.textContent=row.label;
+      const section=document.createElement('small');section.textContent=row.section;
+      button.append(name,section);button.onclick=()=>{clearTimeout(findJumpTimer);findCursor=index;showFindHit();findInput.focus({preventScroll:true});findResults.hidden=true};
+      findResults.append(button);
+    });
+    if(matches.length>8){const more=document.createElement('p');more.textContent='Всего: '+matches.length+'. Уточните запрос или используйте стрелки.';findResults.append(more)}
+    findResults.hidden=!matches.length;
+  }
+  // Notes and formulas outside tables remain searchable as a fallback.
+  if(!findHits.length)
+  (notebook.cells||[]).forEach((cell,i)=>{if(cellText(cell).includes(q))findHits.push(i+1)});
+  findStatus.textContent=findHits.length?'0/'+findHits.length:'0/0';
+}
+function referenceSearchText(text){
+  const symbols={'ℏ':'hbar','ħ':'hbar','ε':'epsilon','ϵ':'epsilon','μ':'mu','µ':'mu','α':'alpha','ν':'nu','λ':'lambda','ρ':'rho','σ':'sigma','π':'pi','φ':'phi','Φ':'phi','ω':'omega','∞':'infty','₀':'0','₁':'1','₂':'2'};
+  return normalize(text).replace(/[ℏħεϵμµανλρσπφΦω∞₀₁₂]/g,ch=>symbols[ch]).replace(/\\(?:mathrm|mathbf|boldsymbol|text|mathfrak|mathcal|bar)\b/g,'').replace(/[\\_{}]/g,'').replace(/\s+/g,' ').trim();
+}
+function indexReferenceRows(){
+  referenceRows=[];
+  if(!notebook?.metadata?.nsu_reference)return;
+  let section='';
+  main.querySelectorAll('.markdown-body h2,.markdown-body h3,.markdown-body tbody tr').forEach(element=>{
+    if(element.tagName!=='TR'){section=element.textContent.trim();return}
+    const copy=element.cloneNode(true);
+    copy.querySelectorAll('.math-placeholder').forEach(el=>{el.textContent=mathRegistry.get(el.dataset.mathId)?.tex||el.textContent});
+    const text=[...copy.children].map(cell=>cell.textContent).join(' ');
+    const headers=[...element.closest('table').querySelectorAll('thead th')];
+    const symbolIndex=headers.findIndex(th=>/обозн|symbol/i.test(th.textContent));
+    const symbolText=symbolIndex>=0?referenceSearchText(copy.children[symbolIndex]?.textContent||''):'';
+    referenceRows.push({element,text:referenceSearchText(text),symbols:symbolText.split(/[^\p{L}\p{N}]+/u).filter(Boolean),label:copy.children[0]?.textContent.trim()||'',section});
+  });
+}
+function adaptReferenceTables(){
+  if(!notebook?.metadata?.nsu_reference)return;
+  main.querySelectorAll('.markdown-body table').forEach(table=>{
+    const labels=[...table.querySelectorAll('thead th')].map(th=>th.textContent.trim());
+    table.querySelectorAll('tbody tr').forEach(row=>{
+      row.setAttribute('role','row');
+      [...row.children].forEach((cell,i)=>{
+        cell.setAttribute('role','cell');cell.dataset.label=labels[i]||'';
+        const value=document.createElement('div');value.className='reference-value';
+        value.append(...cell.childNodes);cell.append(value);
+      });
+    });
+  });
+}
+function showFindHit(smooth=true){
+  if(findCursor<0||!findHits.length)return;
+  findStatus.textContent=(findCursor+1)+'/'+findHits.length;
+  const row=findTargets[findCursor];
+  if(!row){scrollToCell(findHits[findCursor],smooth);return}
+  clearFindHit();row.classList.add('find-hit');
+  row.scrollIntoView({behavior:smooth&&!matchMedia('(prefers-reduced-motion:reduce)').matches?'smooth':'auto',block:'center',inline:'nearest'});
+}
+function moveFind(direction){
+  clearTimeout(findJumpTimer);
+  findResults.hidden=true;
+  if(!findHits.length){rebuildFindHits();if(!findHits.length)return}
+  findCursor=(findCursor+direction+findHits.length)%findHits.length;
+  showFindHit();
+}
+async function typeset(){await renderAllMath(main)}
+function notifyReady(){
+  if(window.parent!==window)try{window.parent.postMessage({type:'nsu-pdf-ready'},location.origin)}catch{}
+}
+const ZOOM_KEY='nsu-notebook-zoom';
+function applyNotebookZoom(value,persist=true){
+  let pct=Number(value);
+  if(![80,90,100,110,125,150].includes(pct))pct=100;
+  const z=pct/100;
+  zoomSelect.value=String(pct);
+  main.style.zoom=String(z);
+  // CSS zoom already adjusts percentage widths to the available viewport.
+  // Compensating with 100/z percent makes 80% overflow and 150% too narrow.
+  main.style.width='100%';
+  main.style.maxWidth=embed?'none':(980/z)+'px';
+  if(persist)try{localStorage.setItem(ZOOM_KEY,String(pct))}catch{}
+}
+let initialZoom=100;
+try{initialZoom=Number(localStorage.getItem(ZOOM_KEY)||100)}catch{}
+applyNotebookZoom(initialZoom,false);
+zoomSelect.addEventListener('change',()=>applyNotebookZoom(zoomSelect.value,true));
+
+async function openNotebook(){
+  if(!raw){main.innerHTML='<div class="error">В ссылке не указан notebook.</div>';notifyReady();return}
+  title.textContent=titleParam||raw.split('/').pop().replace(/\.ipynb$/i,'');
+  document.title=title.textContent+' · Кафедра';
+  if(REPO)github.href=githubFileUrl(raw);
+  else{github.textContent='Скачать ↓';github.href=localFileUrl(raw).href;github.download=raw.split('/').pop();github.removeAttribute('target')}
+  notebookUrl=localFileUrl(raw).href;
+  try{
+    const response=await fetch(notebookUrl,{cache:version?'force-cache':'no-cache'});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    notebook=await response.json();
+    document.body.classList.toggle('reference-reader',!!notebook.metadata?.nsu_reference);
+    if(notebook.metadata?.nsu_reference){findInput.placeholder='Название или символ…';findInput.setAttribute('aria-label','Найти величину по названию или символу')}
+    mathRegistry.clear();mathSerial=0;
+    const cells=Array.isArray(notebook.cells)?notebook.cells:[];
+    const language=String(notebook.metadata?.language_info?.name||notebook.metadata?.kernelspec?.language||'python').toLowerCase().replace(/[^a-z0-9_+-]/g,'')||'python';
+    const kernel=notebook.metadata?.kernelspec?.display_name||language;
+    subtitle.textContent=cells.length+' ячеек · '+kernel+' · локальный просмотр';
+    if(knowledgeReader)subtitle.textContent='База знаний · '+(raw.split('/').slice(2,-1).at(-1)||'Справочники');
+    main.innerHTML='<section class="notebook-head"><h1>'+escapeHtml(title.textContent)+'</h1><div class="notebook-meta"><span class="meta-chip">'+cells.length+' ячеек</span><span class="meta-chip">'+escapeHtml(kernel)+'</span><span class="meta-chip">nbformat '+escapeHtml(notebook.nbformat||'—')+'</span></div></section><div class="cells">'+cells.map((c,i)=>renderCell(c,i,language)).join('')+'</div>';
+
+    main.querySelectorAll('.markdown-body,.output-body').forEach(root=>{
+      patchLinks(root);
+      wrapScrollableTables(root);
+      root.querySelectorAll('table').forEach(table=>table.setAttribute('role','table'));
+    });
+    if(window.hljs)main.querySelectorAll('pre code').forEach(el=>{try{hljs.highlightElement(el)}catch{}});
+    adaptReferenceTables();indexReferenceRows();
+    window.notebookOutline?.build(main,mathRegistry);
+    await typeset();
+    window.NSUApp?.warm();
+    notifyReady();
+
+    if(initialFind){
+      findInput.value=initialFind;rebuildFindHits();
+      if(initialCell&&findHits.includes(initialCell)){findCursor=findHits.indexOf(initialCell);showFindHit(false)}
+      else if(findHits.length){findCursor=0;showFindHit(false)}
+      else if(initialCell)scrollToCell(initialCell,false);
+    }else if(initialCell){
+      scrollToCell(initialCell,false);
+    }else window.notebookOutline?.restoreHash();
+  }catch(err){
+    main.innerHTML='<div class="error"><div><strong>Не удалось открыть notebook.</strong><br><br>'+escapeHtml(err?.message||String(err))+'</div></div>';
+    notifyReady();
+  }
+}
+back.onclick=()=>{
+  if(window.parent!==window&&full){
+    window.parent.postMessage({type:'nsu-close-pdf'},location.origin);return;
+  }
+  if(history.length>1)history.back();
+  else location.href='../../'+(subject?'#s-'+encodeURIComponent(subject):'');
+};
+findInput.addEventListener('input',()=>{
+  rebuildFindHits();
+  if(referenceRows.length&&normalize(findInput.value).length>=1&&findHits.length)
+    findJumpTimer=setTimeout(()=>{findCursor=0;showFindHit()},220);
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.find-box'))findResults.hidden=true});
+findInput.addEventListener('focus',()=>{if(findResults.children.length)findResults.hidden=false});
+findInput.addEventListener('keydown',e=>{if(e.key==='Escape'){findResults.hidden=true;e.stopPropagation()}});
+findInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();moveFind(e.shiftKey?-1:1)}});
+findNext.onclick=()=>moveFind(1);
+findPrev.onclick=()=>moveFind(-1);
+window.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();findInput.focus();findInput.select()}
+  if(e.key==='Escape'&&full&&window.parent!==window)window.parent.postMessage({type:'nsu-close-pdf'},location.origin);
+});
+
+// On a phone held horizontally, keep the document full-height while reading.
+// A downward scroll hides the upper toolbar; a small upward scroll reveals it again.
+const notebookLandscapePhone=window.matchMedia('(orientation:landscape) and (max-height:600px) and (pointer:coarse)');
+const notebookToolbar=document.querySelector('.toolbar');
+let notebookChromeLastY=window.scrollY,notebookChromeDirection=0;
+function setNotebookChromeHidden(hidden){
+  document.body.classList.toggle('notebook-chrome-hidden',!!hidden&&notebookLandscapePhone.matches);
+}
+function updateNotebookChrome(){
+  const y=window.scrollY,delta=y-notebookChromeLastY;
+  notebookChromeLastY=y;
+  if(!notebookLandscapePhone.matches||document.body.classList.contains('toc-open')){
+    notebookChromeDirection=0;setNotebookChromeHidden(false);return;
+  }
+  if(y<18){notebookChromeDirection=0;setNotebookChromeHidden(false);return;}
+  if(Math.abs(delta)<2)return;
+  if(Math.sign(delta)!==Math.sign(notebookChromeDirection))notebookChromeDirection=0;
+  notebookChromeDirection+=delta;
+  if(notebookChromeDirection>12){setNotebookChromeHidden(true);notebookChromeDirection=0;}
+  else if(notebookChromeDirection<-5){setNotebookChromeHidden(false);notebookChromeDirection=0;}
+}
+window.addEventListener('scroll',()=>requestAnimationFrame(updateNotebookChrome),{passive:true});
+notebookLandscapePhone.addEventListener('change',()=>{notebookChromeLastY=window.scrollY;notebookChromeDirection=0;setNotebookChromeHidden(false)});
+notebookToolbar.addEventListener('focusin',()=>setNotebookChromeHidden(false));
+notebookToolbar.addEventListener('pointerdown',()=>setNotebookChromeHidden(false),{passive:true});
+
+// The deferred MathJax script has executed by DOMContentLoaded; its startup
+// promise can then be awaited even when the notebook fetch is very fast.
+window.addEventListener('DOMContentLoaded',openNotebook,{once:true});
+</script>
+</body>
+</html>

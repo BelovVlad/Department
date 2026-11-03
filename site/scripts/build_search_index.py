@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Full-text index of the course PDFs, in the format of the NSU Y4 S1 site's search.
+"""Full-text index of the course PDFs and code files, in the format of the NSU Y4 S1 site's search.
 
 Writes site/viewer/search-index/ (files.json, manifest.json, one part per course). The shared
 search worker (site/viewer/search-worker.js) reads it: the reader uses it for its search and
@@ -22,6 +22,10 @@ ROOT = Path(__file__).resolve().parents[2]
 SITE = ROOT / 'site'
 OUT = SITE / 'viewer' / 'search-index'
 EXCLUDED = {'site', 'node_modules', '__pycache__'}  # same as site/scripts/catalog.mjs
+# Code files open in viewer/notebook/code.html; their type is the extension, a hit is a line (pieces of 30 lines).
+CODE = {'.py', '.c', '.h', '.cc', '.cpp', '.cxx', '.hpp', '.hh', '.sh', '.ps1', '.js', '.mjs', '.json', '.yaml', '.yml',
+        '.toml', '.ini', '.cfg', '.md', '.txt', '.m', '.jl', '.wl', '.tex', '.r'}
+CODE_CHUNK = 30
 
 
 def clean(text: str) -> str:
@@ -76,6 +80,19 @@ def main() -> None:
             row['indexed'] = bool(pages)
             files.append(row)
             records.append({'path': path, 'pages': pages})
+        for source in sorted(course.rglob('*')):
+            rel = source.relative_to(ROOT).as_posix()
+            if not source.is_file() or not (source.suffix.lower() in CODE or source.name.lower() == 'makefile') or                     any(part.startswith('.') or part in EXCLUDED for part in rel.split('/')):
+                continue
+            path, parts, entry = 'files/' + rel, rel.split('/'), meta.get(rel, {})
+            lines = source.read_text('utf-8', errors='replace').splitlines()
+            files.append({'path': path, 'type': source.suffix.lower().lstrip('.') or 'makefile', 'title': entry.get('title') or source.name,
+                          'subject': course.name, 'section': parts[1] if len(parts) > 2 else '',
+                          'version': hashlib.sha1(source.read_bytes()).hexdigest()[:12], 'size': source.stat().st_size,
+                          'line_count': len(lines), 'indexed': True})
+            pages = [{'n': start + 1, 't': text} for start in range(0, len(lines), CODE_CHUNK)
+                     if (text := clean(' '.join(lines[start:start + CODE_CHUNK])))]
+            records.append({'path': path, 'pages': pages})
         name = f'part-{number:02d}.json'
         body = json.dumps({'records': records}, ensure_ascii=False, separators=(',', ':'))
         (OUT / name).write_text(body, 'utf-8')
@@ -83,7 +100,7 @@ def main() -> None:
     (OUT / 'files.json').write_text(json.dumps({'version': 2, 'generated_at': generated, 'files': files}, ensure_ascii=False, indent=1), 'utf-8')
     (OUT / 'manifest.json').write_text(json.dumps({'version': 3, 'generated_at': generated, 'shards': shards}, ensure_ascii=False, indent=1), 'utf-8')
     found = sum(f['indexed'] for f in files)
-    print(f'Search index: {len(files)} PDFs, {found} with text, {len(shards)} parts in {OUT}')
+    print(f'Search index: {len(files)} files, {found} with text, {len(shards)} parts in {OUT}')
 
 
 if __name__ == '__main__':
