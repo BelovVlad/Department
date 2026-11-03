@@ -60,6 +60,8 @@ details.section[open]{padding-bottom:22px}
 .file-main{display:flex;align-items:center;gap:15px;flex:1;min-width:0;text-decoration:none;padding:15px 17px}
 .file-icon{display:grid;place-items:center;width:42px;height:42px;flex:none;border:1px solid var(--line);border-radius:7px;color:var(--warm);font-size:8px;font-weight:700;letter-spacing:.03em;text-align:center;line-height:1.1;padding:2px}
 .file-icon[data-kind=PDF]{color:var(--accent);border-color:#d64c5040}
+.file-icon[data-kind=Python],.file-icon[data-kind=Jupyter]{color:#e0b85a;border-color:#e0b85a40}
+.file-icon[data-kind="C++"],.file-icon[data-kind=C]{color:#6fa6d6;border-color:#6fa6d640}
 .file-icon[data-kind=Word]{color:#5b9bf0;border-color:#5b9bf040}
 .file-copy{min-width:0;flex:1;overflow-wrap:anywhere}
 .file-copy strong{font-size:13px;font-weight:500}

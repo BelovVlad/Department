@@ -31,7 +31,7 @@ function fileRow(file) {
   if (file.view) {
     const params = new URLSearchParams({ file: file.view, title: file.title, subject: file.section });
     if (file.view !== 'files/' + file.path) params.set('source', 'files/' + file.path);
-    main.href = './viewer/pdfjs/viewer.html?' + params;
+    main.href = `./viewer/${file.reader === 'code' ? 'code' : 'pdfjs'}/viewer.html?` + params;
   } else { main.href = url('files/' + file.path); main.download = file.name; }
   const badge = el('span', 'file-icon', file.kind); badge.dataset.kind = file.kind;
   const copy = el('span', 'file-copy');

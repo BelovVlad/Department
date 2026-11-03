@@ -7,7 +7,10 @@ export const content = resolve(site, '..');
 // Folders of Department that are not courses.
 const excluded = new Set(['site', 'node_modules', '__pycache__']);
 const viewable = new Set(['.pdf']);
-const kinds = { '.pdf':'PDF', '.docx':'Word', '.doc':'Word', '.djvu':'DjVu', '.par':'Solid Edge', '.asm':'Solid Edge', '.stp':'STEP', '.step':'STEP', '.xlsx':'Excel', '.pptx':'PowerPoint', '.ipynb':'Jupyter', '.zip':'Архив' };
+// Text files the code reader shows (viewer/code): sources, notebooks, notes.
+const code = new Set(['.py', '.ipynb', '.c', '.h', '.cpp', '.hpp', '.cc', '.cxx', '.hh', '.sh', '.ps1', '.js', '.mjs', '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.md', '.txt', '.csv', '.m', '.wl', '.jl', '.r', '.tex']);
+const isCode = (name, ext) => code.has(ext) || /^(makefile|dockerfile|cmakelists\.txt)$/i.test(name);
+const kinds = { '.py':'Python', '.c':'C', '.h':'C++', '.cpp':'C++', '.hpp':'C++', '.cc':'C++', '.sh':'Shell', '.md':'Markdown', '.json':'JSON', '.txt':'Текст', '.csv':'CSV', '.m':'MATLAB', '.wl':'Wolfram', '.tex':'LaTeX', '.pdf':'PDF', '.docx':'Word', '.doc':'Word', '.djvu':'DjVu', '.par':'Solid Edge', '.asm':'Solid Edge', '.stp':'STEP', '.step':'STEP', '.xlsx':'Excel', '.pptx':'PowerPoint', '.ipynb':'Jupyter', '.zip':'Архив' };
 
 const posix = path => path.split('\\').join('/');
 const plainTitle = name => name.replace(/\.[^.]+$/, '').replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -36,7 +39,7 @@ export async function collect(root = content, meta = {}) {
       if (!entry.isFile()) continue;
       const path = posix(relative(root, absolute)), parts = path.split('/'), ext = extname(entry.name).toLowerCase(), info = await stat(absolute);
       const { title, description } = described(path);
-      files.push({ path, section: parts[0], group: parts.length > 2 ? parts[1] : '', folder: parts.slice(2, -1).join('/'), name: entry.name, title: title ?? plainTitle(entry.name), description, ext: ext.slice(1), kind: kinds[ext] ?? (ext.slice(1).toUpperCase() || 'Файл'), bytes: info.size, modified: info.mtime.toISOString(), view: viewable.has(ext) ? 'files/' + path : null });
+      files.push({ path, section: parts[0], group: parts.length > 2 ? parts[1] : '', folder: parts.slice(2, -1).join('/'), name: entry.name, title: title ?? (isCode(entry.name, ext) ? entry.name : plainTitle(entry.name)), description, ext: ext.slice(1), kind: kinds[ext] ?? (ext.slice(1).toUpperCase() || (/^makefile$/i.test(entry.name) ? 'Make' : 'Файл')), bytes: info.size, modified: info.mtime.toISOString(), view: viewable.has(ext) || isCode(entry.name, ext) ? 'files/' + path : null, ...(isCode(entry.name, ext) && { reader: 'code' }) });
     }
   }
   // "$order" lists section and group names that go first, in that order.
