@@ -83,6 +83,8 @@ function render() {
 function reveal(id) { const target = document.getElementById(id); if (!target) return; target.open = true; target.scrollIntoView(); }
 nav.addEventListener('click', e => { const link = e.target.closest('a'); if (!link) return; e.preventDefault(); const id = link.hash.slice(1); history.replaceState(null, '', '#' + id); reveal(decodeURIComponent(id)); });
 search.addEventListener('input', render);
+search.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); search.blur(); } if (e.key === 'Escape' && search.value) { search.value = ''; render(); } });
+addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); search.focus(); search.select(); } });
 try {
   const response = await fetch('./materials.json', { cache: 'no-cache' });
   if (!response.ok) throw new Error('catalog');
